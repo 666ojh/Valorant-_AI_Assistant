@@ -7,7 +7,7 @@
 当前采用的技术方案如下：
 
 - 后端：`Java 21`、`Spring Boot`、`Spring Security`、`Spring AI`
-- ORM：`Spring Data JPA` / `MyBatis-Plus`
+- ORM：`MyBatis-Plus`
 - 业务数据库：`MySQL 8.x`
 - 缓存：`Redis`
 - 对象存储：`MinIO`
@@ -146,7 +146,7 @@
 
 - 初始化 `Spring Boot` 项目
 - 集成 `Spring Security`
-- 集成 `JPA / MyBatis-Plus`
+- 集成 `MyBatis-Plus`
 - 配置 `MySQL`
 - 配置 `Redis`
 - 统一返回体

@@ -10,6 +10,11 @@ This backend scaffold is intentionally optimized for the first runnable version:
 - match detail query
 - knowledge/chat tables reserved for the next phase
 
+## Persistence Stack
+
+The backend now uses `Mapper + MyBatis-Plus` as the only persistence approach.
+The earlier JPA repository experiment has been removed from the active code path.
+
 ## Module Layout
 
 ```text
