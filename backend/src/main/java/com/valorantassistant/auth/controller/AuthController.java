@@ -3,6 +3,7 @@ package com.valorantassistant.auth.controller;
 import com.valorantassistant.auth.dto.CurrentUserResponse;
 import com.valorantassistant.auth.dto.LoginRequest;
 import com.valorantassistant.auth.dto.LoginResponse;
+import com.valorantassistant.auth.dto.SessionContextResponse;
 import com.valorantassistant.auth.service.AuthService;
 import com.valorantassistant.common.api.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,5 +33,10 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<CurrentUserResponse> me(Authentication authentication) {
         return ApiResponse.success(authService.getCurrentUser(authentication.getName()));
+    }
+
+    @GetMapping("/session-context")
+    public ApiResponse<SessionContextResponse> sessionContext(Authentication authentication) {
+        return ApiResponse.success(authService.getSessionContext(authentication.getName()));
     }
 }

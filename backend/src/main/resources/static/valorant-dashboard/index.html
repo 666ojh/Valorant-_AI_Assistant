@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VALORANT Match Pulse</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="page-shell">
+    <aside class="side-rail">
+        <div class="brand-block">
+            <div class="brand-visual">
+                <img id="brandLogo" class="brand-logo is-hidden" alt="VALORANT logo">
+                <span id="brandFallback" class="brand-mark">V</span>
+            </div>
+            <div>
+                <p class="eyebrow">VALORANT ASSISTANT</p>
+                <h1>Match Pulse</h1>
+            </div>
+        </div>
+
+        <section class="rail-card auth-card">
+            <div class="section-heading section-heading--compact">
+                <p class="eyebrow">AUTH ACCESS</p>
+                <h3>Session State</h3>
+            </div>
+
+            <div id="loggedInPanel" class="auth-user is-hidden">
+                <div class="auth-user__summary">
+                    <img id="authAvatar" class="auth-avatar" alt="User avatar">
+                    <div>
+                        <strong id="authDisplayName">Guest</strong>
+                        <p id="authSubtitle">Sign in to load the current primary player.</p>
+                    </div>
+                </div>
+                <div class="auth-user__meta">
+                    <span id="roleBadge" class="inline-badge">GUEST</span>
+                    <label class="ghost-button ghost-button--upload" for="userAvatarInput">Upload Avatar</label>
+                    <input id="userAvatarInput" class="file-input is-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif">
+                    <button id="refreshButton" class="ghost-button" type="button">Refresh</button>
+                    <button id="logoutButton" class="ghost-button ghost-button--danger" type="button">Logout</button>
+                </div>
+            </div>
+
+            <form id="loginForm" class="login-form">
+                <label class="field-label" for="usernameInput">Account</label>
+                <input id="usernameInput" name="usernameOrEmail" type="text" placeholder="Username or email" autocomplete="username">
+
+                <label class="field-label" for="passwordInput">Password</label>
+                <input id="passwordInput" name="password" type="password" placeholder="Enter password" autocomplete="current-password">
+
+                <button id="loginButton" class="primary-button" type="submit">Login And Load Stats</button>
+            </form>
+
+            <p id="authMessage" class="feedback-text">After login, the page will load the current account and its primary player automatically.</p>
+        </section>
+
+        <section class="rail-card rail-card--accent">
+            <p class="rail-label">Current Source</p>
+            <strong id="dataSourceBadge">PREVIEW</strong>
+            <span id="syncHint">Preview mode is shown before login. Live data will replace it after authentication.</span>
+        </section>
+
+        <section class="rail-card player-card">
+            <div class="section-heading section-heading--compact">
+                <p class="eyebrow">CURRENT PLAYER</p>
+                <h3>Primary Player</h3>
+            </div>
+            <div class="player-identity">
+                <img id="playerAvatar" class="player-avatar" alt="Player avatar">
+                <div>
+                    <strong id="playerName">Waiting For Login</strong>
+                    <p id="playerMeta">The dashboard will resolve the primary player bound to the current account.</p>
+                </div>
+            </div>
+            <div class="player-facts">
+                <div class="fact-tile">
+                    <span>Rank</span>
+                    <strong id="playerRank">-</strong>
+                </div>
+                <div class="fact-tile">
+                    <span>Platform</span>
+                    <strong id="playerPlatform">-</strong>
+                </div>
+                <div class="fact-tile">
+                    <span>Level</span>
+                    <strong id="playerLevel">-</strong>
+                </div>
+                <div class="fact-tile">
+                    <span>Region</span>
+                    <strong id="playerRegion">-</strong>
+                </div>
+            </div>
+        </section>
+    </aside>
+
+    <main class="dashboard">
+        <header class="top-strip">
+            <div>
+                <p class="eyebrow">TACTICAL OVERVIEW</p>
+                <h2 id="heroTitle">Login to load the current player's recent matches</h2>
+            </div>
+            <div class="top-strip__meta">
+                <div class="meta-chip">
+                    <span>Map</span>
+                    <strong id="heroMap">-</strong>
+                </div>
+                <div class="meta-chip">
+                    <span>Mode</span>
+                    <strong id="heroMode">-</strong>
+                </div>
+                <div class="meta-chip">
+                    <span>Result</span>
+                    <strong id="heroResult">-</strong>
+                </div>
+                <div class="meta-chip">
+                    <span>Status</span>
+                    <strong id="sessionStatus">Logged Out</strong>
+                </div>
+            </div>
+        </header>
+
+        <section class="hero-grid">
+            <article id="heroPanel" class="hero-panel hero-panel--primary">
+                <div class="hero-panel__media">
+                    <img id="heroPoster" class="hero-poster is-hidden" alt="Agent poster">
+                    <div class="hero-poster__fallback"></div>
+                </div>
+                <div class="hero-panel__content">
+                    <div class="hero-panel__header">
+                        <div>
+                            <p class="eyebrow">MATCH SNAPSHOT</p>
+                            <h3 id="agentName">Preview</h3>
+                        </div>
+                        <span class="result-badge is-preview" id="resultBadge">Preview</span>
+                    </div>
+
+                    <div class="hero-scoreline">
+                        <div>
+                            <span class="scoreline-label">Score</span>
+                            <strong id="scoreline">0 : 0</strong>
+                        </div>
+                        <div>
+                            <span class="scoreline-label">K / D / A</span>
+                            <strong id="kdaLine">0 / 0 / 0</strong>
+                        </div>
+                    </div>
+
+                    <div class="hero-stats">
+                        <div class="stat-tile">
+                            <span>ACS</span>
+                            <strong id="acsValue">0</strong>
+                        </div>
+                        <div class="stat-tile">
+                            <span>HS Rate</span>
+                            <strong id="headshotValue">0%</strong>
+                        </div>
+                        <div class="stat-tile">
+                            <span>KAST</span>
+                            <strong id="kastValue">0%</strong>
+                        </div>
+                        <div class="stat-tile">
+                            <span>Duration</span>
+                            <strong id="durationValue">0m</strong>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="hero-panel hero-panel--secondary">
+                <div class="section-heading">
+                    <p class="eyebrow">ENGAGEMENT</p>
+                    <h3>Key Fight Metrics</h3>
+                </div>
+                <div class="metric-stack" id="engagementMetrics"></div>
+            </article>
+        </section>
+
+        <section class="content-grid">
+            <article class="panel panel--history">
+                <div class="section-heading">
+                    <p class="eyebrow">MATCH HISTORY</p>
+                    <h3>Recent Matches</h3>
+                </div>
+                <div class="match-list" id="matchList"></div>
+            </article>
+
+            <article class="panel panel--heatmap">
+                <div class="section-heading">
+                    <p class="eyebrow">MAP CONTROL</p>
+                    <h3>Pressure Grid</h3>
+                </div>
+                <div class="heatmap-grid" id="heatmapGrid"></div>
+                <div class="heatmap-legend">
+                    <span>Low</span>
+                    <div class="legend-bar"></div>
+                    <span>High</span>
+                </div>
+            </article>
+
+            <article class="panel panel--timeline">
+                <div class="section-heading">
+                    <p class="eyebrow">ROUND FLOW</p>
+                    <h3>Round Trend</h3>
+                </div>
+                <div class="timeline-strip" id="roundFlow"></div>
+                <div class="timeline-note" id="timelineNote">Round flow will be shown after a live match is loaded.</div>
+            </article>
+
+            <article class="panel panel--loadout">
+                <div class="section-heading">
+                    <p class="eyebrow">TACTICAL MIX</p>
+                    <h3>Weapon Tempo</h3>
+                </div>
+                <div class="loadout-bars" id="loadoutBars"></div>
+            </article>
+        </section>
+    </main>
+</div>
+
+<script src="./app.js"></script>
+</body>
+</html>

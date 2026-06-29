@@ -1,10 +1,16 @@
 package com.valorantassistant.auth.service;
 
 import com.valorantassistant.auth.dto.CurrentUserResponse;
+import com.valorantassistant.auth.dto.CurrentPlayerResponse;
+import com.valorantassistant.auth.dto.DashboardAssetsResponse;
 import com.valorantassistant.auth.dto.LoginRequest;
 import com.valorantassistant.auth.dto.LoginResponse;
+import com.valorantassistant.auth.dto.SessionContextResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.valorantassistant.common.config.DashboardAssetService;
 import com.valorantassistant.common.config.JwtTokenProvider;
+import com.valorantassistant.player.domain.Player;
+import com.valorantassistant.player.mapper.PlayerMapper;
 import com.valorantassistant.user.domain.User;
 import com.valorantassistant.user.domain.UserProfile;
 import com.valorantassistant.user.domain.UserStatus;
@@ -21,19 +27,25 @@ public class AuthService {
 
     private final UserMapper userMapper;
     private final UserProfileMapper userProfileMapper;
+    private final PlayerMapper playerMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final DashboardAssetService dashboardAssetService;
 
     public AuthService(
         UserMapper userMapper,
         UserProfileMapper userProfileMapper,
+        PlayerMapper playerMapper,
         PasswordEncoder passwordEncoder,
-        JwtTokenProvider jwtTokenProvider
+        JwtTokenProvider jwtTokenProvider,
+        DashboardAssetService dashboardAssetService
     ) {
         this.userMapper = userMapper;
         this.userProfileMapper = userProfileMapper;
+        this.playerMapper = playerMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.dashboardAssetService = dashboardAssetService;
     }
 
     public LoginResponse login(LoginRequest request, String clientIp) {
@@ -64,9 +76,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User does not exist");
         }
 
-        UserProfile profile = userProfileMapper.selectOne(new LambdaQueryWrapper<UserProfile>()
-            .eq(UserProfile::getUserId, user.getId())
-            .last("limit 1"));
+        UserProfile profile = findProfile(user.getId());
         String displayName = profile == null ? null : profile.getDisplayName();
         return new CurrentUserResponse(
             user.getId(),
@@ -76,5 +86,75 @@ public class AuthService {
             user.getStatus().name(),
             displayName
         );
+    }
+
+    public SessionContextResponse getSessionContext(String username) {
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User does not exist");
+        }
+
+        UserProfile profile = findProfile(user.getId());
+        Player primaryPlayer = findPrimaryPlayer(user.getId());
+        DashboardAssetsResponse assets = dashboardAssetService.getDashboardAssets();
+        String defaultAvatarUrl = assets.defaultAvatarUrl();
+        String userAvatarUrl = dashboardAssetService.resolveAssetOrDefault(profile == null ? null : profile.getAvatarUrl(), defaultAvatarUrl);
+
+        CurrentPlayerResponse currentPlayer = primaryPlayer == null ? null : new CurrentPlayerResponse(
+            primaryPlayer.getId(),
+            primaryPlayer.getUserId(),
+            primaryPlayer.getGameName(),
+            primaryPlayer.getTagLine(),
+            buildPlayerFullName(primaryPlayer),
+            primaryPlayer.getPlatform(),
+            primaryPlayer.getRegionCode(),
+            primaryPlayer.getAccountLevel(),
+            primaryPlayer.getRankTier(),
+            dashboardAssetService.resolveAssetOrDefault(primaryPlayer.getAvatarUrl(), defaultAvatarUrl),
+            primaryPlayer.getPrimary(),
+            primaryPlayer.getStatus()
+        );
+
+        return new SessionContextResponse(
+            user.getId(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getRoleCode(),
+            user.getStatus().name(),
+            profile == null ? null : profile.getDisplayName(),
+            userAvatarUrl,
+            currentPlayer,
+            assets
+        );
+    }
+
+    private UserProfile findProfile(Long userId) {
+        UserProfile profile = userProfileMapper.selectByUserId(userId);
+        if (profile != null) {
+            return profile;
+        }
+        return userProfileMapper.selectOne(new LambdaQueryWrapper<UserProfile>()
+            .eq(UserProfile::getUserId, userId)
+            .last("limit 1"));
+    }
+
+    private Player findPrimaryPlayer(Long userId) {
+        Player player = playerMapper.selectPrimaryByUserId(userId);
+        if (player != null) {
+            return player;
+        }
+        return playerMapper.selectFirstByUserId(userId);
+    }
+
+    private String buildPlayerFullName(Player player) {
+        if (player == null) {
+            return null;
+        }
+        if (player.getGameName() == null) {
+            return null;
+        }
+        return player.getTagLine() == null || player.getTagLine().isBlank()
+            ? player.getGameName()
+            : player.getGameName() + "#" + player.getTagLine();
     }
 }

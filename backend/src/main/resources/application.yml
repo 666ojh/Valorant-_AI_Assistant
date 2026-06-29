@@ -6,6 +6,10 @@ server:
 spring:
   application:
     name: valorant-matches-assistant-backend
+  servlet:
+    multipart:
+      max-file-size: ${VALORANT_ASSISTANT_UPLOAD_MAX_FILE_SIZE:10MB}
+      max-request-size: ${VALORANT_ASSISTANT_UPLOAD_MAX_REQUEST_SIZE:10MB}
   datasource:
     url: jdbc:mysql://${VALORANT_ASSISTANT_MYSQL_HOST:127.0.0.1}:${VALORANT_ASSISTANT_MYSQL_PORT:3306}/${VALORANT_ASSISTANT_MYSQL_DATABASE:valorant_assistant}?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -31,6 +35,35 @@ app:
   security:
     jwt-secret: ${VALORANT_ASSISTANT_JWT_SECRET:change-this-secret-before-production}
     jwt-expiration-minutes: ${VALORANT_ASSISTANT_JWT_EXPIRATION_MINUTES:120}
+  assets:
+    dashboard:
+      oss-base-url: ${VALORANT_ASSISTANT_OSS_BASE_URL:${VALORANT_ASSISTANT_OSS_PUBLIC_BASE_URL:}}
+      logo-path: /valorant-dashboard/brand/VALORANT_Logo_V_thumbnail.jpg
+      default-avatar-path: dashboard/player/default-avatar.png
+      side-agent-path: dashboard/agents/jett-side.png
+      map-images:
+        Split: dashboard/maps/split.jpg
+        Ascent: dashboard/maps/ascent.jpg
+        Lotus: dashboard/maps/lotus.jpg
+        Bind: dashboard/maps/bind.jpg
+        Haven: dashboard/maps/haven.jpg
+        Sunset: dashboard/maps/sunset.jpg
+      agent-images:
+        Jett: dashboard/agents/jett.png
+        Omen: dashboard/agents/omen.png
+        Raze: dashboard/agents/raze.png
+        Cypher: dashboard/agents/cypher.png
+        Sova: dashboard/agents/sova.png
+        Reyna: dashboard/agents/reyna.png
+  storage:
+    oss:
+      endpoint: ${VALORANT_ASSISTANT_OSS_ENDPOINT:}
+      bucket: ${VALORANT_ASSISTANT_OSS_BUCKET:}
+      access-key-id: ${VALORANT_ASSISTANT_OSS_ACCESS_KEY_ID:}
+      access-key-secret: ${VALORANT_ASSISTANT_OSS_ACCESS_KEY_SECRET:}
+      public-base-url: ${VALORANT_ASSISTANT_OSS_PUBLIC_BASE_URL:}
+      root-path: ${VALORANT_ASSISTANT_OSS_ROOT_PATH:uploads/images}
+      max-file-size: ${VALORANT_ASSISTANT_OSS_MAX_FILE_SIZE:10MB}
   bootstrap:
     seed-admin: ${VALORANT_ASSISTANT_BOOTSTRAP_SEED_ADMIN:true}
     admin-username: ${VALORANT_ASSISTANT_BOOTSTRAP_ADMIN_USERNAME:admin}

@@ -6,5 +6,16 @@ spring:
     password: 123456
 
 app:
+  assets:
+    dashboard:
+      oss-base-url: ""
+      logo-path: /valorant-dashboard/brand/VALORANT_Logo_V_thumbnail.jpg
+  storage:
+    oss:
+      endpoint: ""
+      bucket: ""
+      access-key-id: ""
+      access-key-secret: ""
+      public-base-url: ""
   bootstrap:
     seed-admin: true
