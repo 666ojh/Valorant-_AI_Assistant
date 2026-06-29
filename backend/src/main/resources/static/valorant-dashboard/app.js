@@ -157,7 +157,7 @@ const previewMatches = [
 const state = {
     matches: [],
     selectedMatchId: null,
-    source: "PREVIEW",
+    source: "LOCKED",
     token: localStorage.getItem(TOKEN_STORAGE_KEY),
     session: null,
     dashboardAssets: createEmptyAssets(),
@@ -185,6 +185,7 @@ const elements = {
     authMessage: document.getElementById("authMessage"),
     dataSourceBadge: document.getElementById("dataSourceBadge"),
     syncHint: document.getElementById("syncHint"),
+    playerCardPanel: document.getElementById("playerCardPanel"),
     playerAvatar: document.getElementById("playerAvatar"),
     playerName: document.getElementById("playerName"),
     playerMeta: document.getElementById("playerMeta"),
@@ -192,6 +193,12 @@ const elements = {
     playerPlatform: document.getElementById("playerPlatform"),
     playerLevel: document.getElementById("playerLevel"),
     playerRegion: document.getElementById("playerRegion"),
+    heroPanel: document.getElementById("heroPanel"),
+    engagementPanel: document.getElementById("engagementPanel"),
+    historyPanel: document.getElementById("historyPanel"),
+    heatmapPanel: document.getElementById("heatmapPanel"),
+    timelinePanel: document.getElementById("timelinePanel"),
+    loadoutPanel: document.getElementById("loadoutPanel"),
     heroPoster: document.getElementById("heroPoster"),
     heroTitle: document.getElementById("heroTitle"),
     heroMap: document.getElementById("heroMap"),
@@ -355,6 +362,20 @@ function getDefaultAvatarUrl() {
 
 function setImageSource(element, url) {
     element.src = url || BLANK_IMAGE;
+}
+
+function setLockedState(isLocked) {
+    [
+        elements.playerCardPanel,
+        elements.heroPanel,
+        elements.engagementPanel,
+        elements.historyPanel,
+        elements.heatmapPanel,
+        elements.timelinePanel,
+        elements.loadoutPanel
+    ].forEach((element) => {
+        element.classList.toggle("is-locked", isLocked);
+    });
 }
 
 function normalizeDetail(detail) {
@@ -559,7 +580,7 @@ function renderEmpty(message) {
     elements.heroMode.textContent = "-";
     elements.heroResult.textContent = "-";
     elements.agentName.textContent = "No Match";
-    elements.resultBadge.textContent = state.session ? "Empty" : "Preview";
+    elements.resultBadge.textContent = state.session ? "Empty" : "Locked";
     elements.resultBadge.className = `result-badge ${state.session ? "" : "is-preview"}`;
     elements.scoreline.textContent = "0 : 0";
     elements.kdaLine.textContent = "0 / 0 / 0";
@@ -569,7 +590,7 @@ function renderEmpty(message) {
     elements.durationValue.textContent = "0m";
     elements.heroPoster.classList.add("is-hidden");
     elements.engagementMetrics.innerHTML = "";
-    elements.matchList.innerHTML = `<div class="match-card"><div class="match-card__body"><strong>No match data</strong><div class="match-card__subtitle">${message}</div></div></div>`;
+    elements.matchList.innerHTML = `<div class="match-card"><div class="match-card__body"><strong>${state.session ? "No match data" : "Log in to view"}</strong><div class="match-card__subtitle">${message}</div></div></div>`;
     elements.heatmapGrid.innerHTML = "";
     elements.roundFlow.innerHTML = "";
     elements.timelineNote.textContent = "No round data.";
@@ -577,6 +598,7 @@ function renderEmpty(message) {
 }
 
 function render() {
+    setLockedState(!state.session);
     renderAuthPanel();
     renderPlayerCard();
     applyBrandAsset();
@@ -682,9 +704,9 @@ async function bootstrapSession() {
         state.session = null;
         state.dashboardAssets = createEmptyAssets();
         state.authMessage = shouldFallbackToLocalApi()
-            ? `Current page is using backend API ${describeApiBase()}. After login, the current account and primary player will load automatically.`
-            : "After login, the page will load the current account and its primary player automatically.";
-        setMatches(previewMatches, "PREVIEW", "Preview mode is shown before login. Live data will replace it after authentication.");
+            ? `Current page is using backend API ${describeApiBase()}. Log in to view live player data.`
+            : "Log in to view live player data.";
+        setMatches([], "LOCKED", "Log in to view live player data.");
         return;
     }
 
@@ -705,7 +727,7 @@ async function bootstrapSession() {
         state.session = null;
         state.dashboardAssets = createEmptyAssets();
         state.authMessage = "Session expired. Please login again.";
-        setMatches(previewMatches, "PREVIEW", "Session bootstrap failed. The dashboard has fallen back to preview mode.");
+        setMatches([], "LOCKED", "Session expired. Log in again to view player data.");
     } finally {
         state.isLoading = false;
         render();
@@ -805,10 +827,10 @@ function handleLogout() {
     setStoredToken(null);
     state.session = null;
     state.dashboardAssets = createEmptyAssets();
-    state.authMessage = "Logged out. The dashboard is back in preview mode.";
+    state.authMessage = "Logged out. Log in to view player data.";
     elements.usernameInput.value = "";
     elements.passwordInput.value = "";
-    setMatches(previewMatches, "PREVIEW", "Preview mode is shown before login. Live data will replace it after authentication.");
+    setMatches([], "LOCKED", "Log in to view live player data.");
 }
 
 function bindEvents() {

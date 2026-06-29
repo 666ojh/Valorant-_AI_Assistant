@@ -65,6 +65,42 @@ input {
     display: none !important;
 }
 
+.lockable-panel {
+    position: relative;
+    overflow: hidden;
+}
+
+.lockable-panel.is-locked > * {
+    filter: blur(10px);
+    pointer-events: none;
+    user-select: none;
+}
+
+.lockable-panel.is-locked::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(145deg, rgba(7, 7, 7, 0.44), rgba(7, 7, 7, 0.72));
+    backdrop-filter: blur(10px);
+    z-index: 2;
+}
+
+.lockable-panel.is-locked::after {
+    content: attr(data-lock-message);
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: var(--text-light);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-align: center;
+}
+
 .page-shell {
     position: relative;
     z-index: 1;

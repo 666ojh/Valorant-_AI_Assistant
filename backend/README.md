@@ -94,6 +94,7 @@
 
 - 页面资源位于 `backend/src/main/resources/static/valorant-dashboard`
 - 本地默认 logo 使用 `art/Logo Wallpapers/VALORANT_Logo_V_thumbnail.jpg` 的静态副本
+- 未登录时，`Recent Matches`、`MATCH SNAPSHOT`、玩家信息等数据区域会进入模糊锁定态，并显示 `Log in to view`
 - 如果配置了 `OSS` 基础地址，页面里的地图图、英雄图、默认头像会优先按 OSS 地址拼接展示
 
 ## 当前接口清单

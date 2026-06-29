@@ -62,7 +62,7 @@
             <span id="syncHint">Preview mode is shown before login. Live data will replace it after authentication.</span>
         </section>
 
-        <section class="rail-card player-card">
+        <section id="playerCardPanel" class="rail-card player-card lockable-panel" data-lock-message="Log in to view">
             <div class="section-heading section-heading--compact">
                 <p class="eyebrow">CURRENT PLAYER</p>
                 <h3>Primary Player</h3>
@@ -122,7 +122,7 @@
         </header>
 
         <section class="hero-grid">
-            <article id="heroPanel" class="hero-panel hero-panel--primary">
+            <article id="heroPanel" class="hero-panel hero-panel--primary lockable-panel" data-lock-message="Log in to view">
                 <div class="hero-panel__media">
                     <img id="heroPoster" class="hero-poster is-hidden" alt="Agent poster">
                     <div class="hero-poster__fallback"></div>
@@ -168,7 +168,7 @@
                 </div>
             </article>
 
-            <article class="hero-panel hero-panel--secondary">
+            <article id="engagementPanel" class="hero-panel hero-panel--secondary lockable-panel" data-lock-message="Log in to view">
                 <div class="section-heading">
                     <p class="eyebrow">ENGAGEMENT</p>
                     <h3>Key Fight Metrics</h3>
@@ -178,7 +178,7 @@
         </section>
 
         <section class="content-grid">
-            <article class="panel panel--history">
+            <article id="historyPanel" class="panel panel--history lockable-panel" data-lock-message="Log in to view">
                 <div class="section-heading">
                     <p class="eyebrow">MATCH HISTORY</p>
                     <h3>Recent Matches</h3>
@@ -186,7 +186,7 @@
                 <div class="match-list" id="matchList"></div>
             </article>
 
-            <article class="panel panel--heatmap">
+            <article id="heatmapPanel" class="panel panel--heatmap lockable-panel" data-lock-message="Log in to view">
                 <div class="section-heading">
                     <p class="eyebrow">MAP CONTROL</p>
                     <h3>Pressure Grid</h3>
@@ -199,7 +199,7 @@
                 </div>
             </article>
 
-            <article class="panel panel--timeline">
+            <article id="timelinePanel" class="panel panel--timeline lockable-panel" data-lock-message="Log in to view">
                 <div class="section-heading">
                     <p class="eyebrow">ROUND FLOW</p>
                     <h3>Round Trend</h3>
@@ -208,7 +208,7 @@
                 <div class="timeline-note" id="timelineNote">Round flow will be shown after a live match is loaded.</div>
             </article>
 
-            <article class="panel panel--loadout">
+            <article id="loadoutPanel" class="panel panel--loadout lockable-panel" data-lock-message="Log in to view">
                 <div class="section-heading">
                     <p class="eyebrow">TACTICAL MIX</p>
                     <h3>Weapon Tempo</h3>
