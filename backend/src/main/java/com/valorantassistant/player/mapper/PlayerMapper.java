@@ -2,9 +2,11 @@ package com.valorantassistant.player.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.valorantassistant.player.domain.Player;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface PlayerMapper extends BaseMapper<Player> {
@@ -30,7 +32,29 @@ public interface PlayerMapper extends BaseMapper<Player> {
         from player
         where user_id = #{userId}
         order by is_primary desc, id asc
+        """)
+    List<Player> selectByUserId(@Param("userId") Long userId);
+
+    @Select("""
+        select id, user_id, platform, region_code, game_name, tag_line, puuid, account_level, rank_tier, avatar_url, is_primary, status, last_synced_at, created_at, updated_at
+        from player
+        where user_id = #{userId}
+        order by is_primary desc, id asc
         limit 1
         """)
     Player selectFirstByUserId(@Param("userId") Long userId);
+
+    @Update("""
+        update player
+        set is_primary = 0
+        where user_id = #{userId} and is_primary = 1
+        """)
+    int clearPrimaryByUserId(@Param("userId") Long userId);
+
+    @Update("""
+        update player
+        set is_primary = 1
+        where id = #{playerId} and user_id = #{userId}
+        """)
+    int activateByIdAndUserId(@Param("playerId") Long playerId, @Param("userId") Long userId);
 }

@@ -23,7 +23,7 @@
         <section class="rail-card auth-card">
             <div class="section-heading section-heading--compact">
                 <p class="eyebrow">AUTH ACCESS</p>
-                <h3>Session State</h3>
+                <h3>Session & Access</h3>
             </div>
 
             <div id="loggedInPanel" class="auth-user is-hidden">
@@ -43,7 +43,12 @@
                 </div>
             </div>
 
-            <form id="loginForm" class="login-form">
+            <div id="authSwitcher" class="auth-switcher">
+                <button id="loginModeButton" class="ghost-button is-active" type="button">Login</button>
+                <button id="registerModeButton" class="ghost-button" type="button">Register</button>
+            </div>
+
+            <form id="loginForm" class="auth-form">
                 <label class="field-label" for="usernameInput">Account</label>
                 <input id="usernameInput" name="usernameOrEmail" type="text" placeholder="Username or email" autocomplete="username">
 
@@ -53,7 +58,26 @@
                 <button id="loginButton" class="primary-button" type="submit">Login And Load Stats</button>
             </form>
 
-            <p id="authMessage" class="feedback-text">After login, the page will load the current account and its primary player automatically.</p>
+            <form id="registerForm" class="auth-form is-hidden">
+                <label class="field-label" for="registerUsernameInput">Username</label>
+                <input id="registerUsernameInput" name="username" type="text" placeholder="Choose a username" autocomplete="username">
+
+                <label class="field-label" for="registerEmailInput">Email</label>
+                <input id="registerEmailInput" name="email" type="email" placeholder="you@example.com" autocomplete="email">
+
+                <label class="field-label" for="registerDisplayNameInput">Display Name</label>
+                <input id="registerDisplayNameInput" name="displayName" type="text" placeholder="Shown in dashboard" autocomplete="nickname">
+
+                <label class="field-label" for="registerPasswordInput">Password</label>
+                <input id="registerPasswordInput" name="password" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+
+                <label class="field-label" for="registerConfirmPasswordInput">Confirm Password</label>
+                <input id="registerConfirmPasswordInput" name="confirmPassword" type="password" placeholder="Repeat password" autocomplete="new-password">
+
+                <button id="registerButton" class="primary-button" type="submit">Register And Start Session</button>
+            </form>
+
+            <p id="authMessage" class="feedback-text">After login or registration, the page will load the current account and its primary player automatically.</p>
         </section>
 
         <section class="rail-card rail-card--accent">
@@ -65,7 +89,7 @@
         <section id="playerCardPanel" class="rail-card player-card lockable-panel" data-lock-message="Log in to view">
             <div class="section-heading section-heading--compact">
                 <p class="eyebrow">CURRENT PLAYER</p>
-                <h3>Primary Player</h3>
+                <h3>Current Player</h3>
             </div>
             <div class="player-identity">
                 <img id="playerAvatar" class="player-avatar" alt="Player avatar">
@@ -91,6 +115,18 @@
                     <span>Region</span>
                     <strong id="playerRegion">-</strong>
                 </div>
+            </div>
+            <div class="player-card__actions">
+                <label id="playerAvatarUploadButton" class="ghost-button ghost-button--upload" for="playerAvatarInput">Upload Player Avatar</label>
+                <input id="playerAvatarInput" class="file-input is-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif">
+            </div>
+            <div id="playerSwitcher" class="player-switcher is-hidden">
+                <div class="section-heading section-heading--compact">
+                    <p class="eyebrow">ACCOUNT SWITCHER</p>
+                    <h3>Bound Accounts</h3>
+                </div>
+                <p id="playerSwitcherHint" class="feedback-text">After login, all bound game accounts will appear here.</p>
+                <div id="playerSwitcherList" class="player-switcher__list"></div>
             </div>
         </section>
     </aside>
@@ -215,6 +251,18 @@
                 </div>
                 <div class="loadout-bars" id="loadoutBars"></div>
             </article>
+        </section>
+
+        <section id="adminPanel" class="panel admin-panel is-hidden">
+            <div class="admin-panel__header">
+                <div class="section-heading section-heading--compact">
+                    <p class="eyebrow">ADMIN CONTROL</p>
+                    <h3>Users & Bound Accounts</h3>
+                </div>
+                <button id="adminRefreshButton" class="ghost-button" type="button">Refresh Admin Data</button>
+            </div>
+            <div id="adminSummary" class="admin-summary"></div>
+            <div id="adminUserList" class="admin-user-list"></div>
         </section>
     </main>
 </div>

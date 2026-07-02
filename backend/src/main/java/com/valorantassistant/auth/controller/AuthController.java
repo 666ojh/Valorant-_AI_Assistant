@@ -3,6 +3,7 @@ package com.valorantassistant.auth.controller;
 import com.valorantassistant.auth.dto.CurrentUserResponse;
 import com.valorantassistant.auth.dto.LoginRequest;
 import com.valorantassistant.auth.dto.LoginResponse;
+import com.valorantassistant.auth.dto.RegisterRequest;
 import com.valorantassistant.auth.dto.SessionContextResponse;
 import com.valorantassistant.auth.service.AuthService;
 import com.valorantassistant.common.api.ApiResponse;
@@ -28,6 +29,11 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpServletRequest) {
         return ApiResponse.success(authService.login(request, httpServletRequest.getRemoteAddr()));
+    }
+
+    @PostMapping("/register")
+    public ApiResponse<LoginResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpServletRequest) {
+        return ApiResponse.success(authService.register(request, httpServletRequest.getRemoteAddr()));
     }
 
     @GetMapping("/me")

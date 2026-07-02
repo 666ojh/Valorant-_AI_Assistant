@@ -160,9 +160,13 @@ const state = {
     source: "LOCKED",
     token: localStorage.getItem(TOKEN_STORAGE_KEY),
     session: null,
+    boundPlayers: [],
     dashboardAssets: createEmptyAssets(),
-    authMessage: "After login, the page will load the current account and its primary player automatically.",
-    isLoading: false
+    adminOverview: null,
+    authMode: "login",
+    authMessage: "After login or registration, the page will load the current account and its primary player automatically.",
+    isLoading: false,
+    isSwitchingPlayer: false
 };
 
 const queryParams = new URLSearchParams(window.location.search);
@@ -171,10 +175,20 @@ const elements = {
     brandLogo: document.getElementById("brandLogo"),
     brandFallback: document.getElementById("brandFallback"),
     loggedInPanel: document.getElementById("loggedInPanel"),
+    authSwitcher: document.getElementById("authSwitcher"),
+    loginModeButton: document.getElementById("loginModeButton"),
+    registerModeButton: document.getElementById("registerModeButton"),
     loginForm: document.getElementById("loginForm"),
+    registerForm: document.getElementById("registerForm"),
     usernameInput: document.getElementById("usernameInput"),
     passwordInput: document.getElementById("passwordInput"),
     loginButton: document.getElementById("loginButton"),
+    registerUsernameInput: document.getElementById("registerUsernameInput"),
+    registerEmailInput: document.getElementById("registerEmailInput"),
+    registerDisplayNameInput: document.getElementById("registerDisplayNameInput"),
+    registerPasswordInput: document.getElementById("registerPasswordInput"),
+    registerConfirmPasswordInput: document.getElementById("registerConfirmPasswordInput"),
+    registerButton: document.getElementById("registerButton"),
     refreshButton: document.getElementById("refreshButton"),
     logoutButton: document.getElementById("logoutButton"),
     userAvatarInput: document.getElementById("userAvatarInput"),
@@ -193,6 +207,11 @@ const elements = {
     playerPlatform: document.getElementById("playerPlatform"),
     playerLevel: document.getElementById("playerLevel"),
     playerRegion: document.getElementById("playerRegion"),
+    playerAvatarInput: document.getElementById("playerAvatarInput"),
+    playerAvatarUploadButton: document.getElementById("playerAvatarUploadButton"),
+    playerSwitcher: document.getElementById("playerSwitcher"),
+    playerSwitcherHint: document.getElementById("playerSwitcherHint"),
+    playerSwitcherList: document.getElementById("playerSwitcherList"),
     heroPanel: document.getElementById("heroPanel"),
     engagementPanel: document.getElementById("engagementPanel"),
     historyPanel: document.getElementById("historyPanel"),
@@ -218,7 +237,11 @@ const elements = {
     heatmapGrid: document.getElementById("heatmapGrid"),
     roundFlow: document.getElementById("roundFlow"),
     timelineNote: document.getElementById("timelineNote"),
-    loadoutBars: document.getElementById("loadoutBars")
+    loadoutBars: document.getElementById("loadoutBars"),
+    adminPanel: document.getElementById("adminPanel"),
+    adminRefreshButton: document.getElementById("adminRefreshButton"),
+    adminSummary: document.getElementById("adminSummary"),
+    adminUserList: document.getElementById("adminUserList")
 };
 
 function createEmptyAssets() {
@@ -230,6 +253,15 @@ function createEmptyAssets() {
         sideAgentUrl: null,
         mapImages: {},
         agentImages: {}
+    };
+}
+
+function createEmptyAdminOverview() {
+    return {
+        totalUsers: 0,
+        totalPlayers: 0,
+        totalTrackedMatches: 0,
+        users: []
     };
 }
 
@@ -288,6 +320,10 @@ function setStoredToken(token) {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+function setImageSource(element, url) {
+    element.src = url || BLANK_IMAGE;
+}
+
 function formatPercent(value) {
     return `${Number(value || 0).toFixed(1)}%`;
 }
@@ -298,8 +334,41 @@ function formatDuration(seconds) {
 }
 
 function formatDateTime(input) {
+    if (!input) {
+        return "-";
+    }
     const date = new Date(input);
+    if (Number.isNaN(date.getTime())) {
+        return "-";
+    }
     return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatMetric(value, digits = 1, suffix = "") {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+        return "-";
+    }
+    return `${numeric.toFixed(digits)}${suffix}`;
+}
+
+function formatCount(value) {
+    if (value === null || value === undefined) {
+        return "0";
+    }
+    return `${value}`;
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 function translateMode(modeCode) {
@@ -360,10 +429,6 @@ function getDefaultAvatarUrl() {
     return state.dashboardAssets.defaultAvatarUrl || "";
 }
 
-function setImageSource(element, url) {
-    element.src = url || BLANK_IMAGE;
-}
-
 function setLockedState(isLocked) {
     [
         elements.playerCardPanel,
@@ -375,6 +440,16 @@ function setLockedState(isLocked) {
         elements.loadoutPanel
     ].forEach((element) => {
         element.classList.toggle("is-locked", isLocked);
+    });
+}
+
+function sortPlayers(players) {
+    return [...(players || [])].sort((left, right) => {
+        const primaryGap = Number(Boolean(right.primary)) - Number(Boolean(left.primary));
+        if (primaryGap !== 0) {
+            return primaryGap;
+        }
+        return Number(left.playerId || 0) - Number(right.playerId || 0);
     });
 }
 
@@ -418,11 +493,25 @@ function applyBrandAsset() {
     elements.brandFallback.classList.remove("is-hidden");
 }
 
+function setAuthMode(mode) {
+    state.authMode = mode === "register" ? "register" : "login";
+    renderAuthMode();
+}
+
+function renderAuthMode() {
+    const isRegisterMode = state.authMode === "register";
+    elements.loginForm.classList.toggle("is-hidden", isRegisterMode || !!state.session);
+    elements.registerForm.classList.toggle("is-hidden", !isRegisterMode || !!state.session);
+    elements.loginModeButton.classList.toggle("is-active", !isRegisterMode);
+    elements.registerModeButton.classList.toggle("is-active", isRegisterMode);
+}
+
 function renderAuthPanel() {
     const user = state.session;
     if (!user) {
         elements.loggedInPanel.classList.add("is-hidden");
-        elements.loginForm.classList.remove("is-hidden");
+        elements.authSwitcher.classList.remove("is-hidden");
+        renderAuthMode();
         elements.authMessage.textContent = state.authMessage;
         elements.sessionStatus.textContent = state.isLoading ? "Checking" : "Logged Out";
         return;
@@ -431,19 +520,34 @@ function renderAuthPanel() {
     const currentPlayer = user.primaryPlayer;
     const avatarUrl = user.avatarUrl || currentPlayer?.avatarUrl || getDefaultAvatarUrl();
     elements.loggedInPanel.classList.remove("is-hidden");
+    elements.authSwitcher.classList.add("is-hidden");
     elements.loginForm.classList.add("is-hidden");
+    elements.registerForm.classList.add("is-hidden");
     setImageSource(elements.authAvatar, avatarUrl);
     elements.authDisplayName.textContent = user.displayName || user.username;
     elements.authSubtitle.textContent = currentPlayer
         ? `${currentPlayer.fullName || currentPlayer.gameName} - ${currentPlayer.rankTier || "Unranked"}`
-        : "No primary player is bound to this account yet.";
+        : user.roleCode === "ADMIN"
+            ? "Administrator session is active. User overview is available below."
+            : "No primary player is bound to this account yet.";
     elements.roleBadge.textContent = user.roleCode || "USER";
     elements.authMessage.textContent = state.authMessage;
-    elements.sessionStatus.textContent = currentPlayer ? "Live" : "No Player";
+    elements.sessionStatus.textContent = currentPlayer ? "Live" : user.roleCode === "ADMIN" ? "Admin" : "No Player";
 }
 
 function renderPlayerCard() {
+    if (state.session?.roleCode === "ADMIN") {
+        elements.playerCardPanel.classList.add("is-hidden");
+        return;
+    }
+
     const currentPlayer = state.session?.primaryPlayer;
+    if (state.session && !currentPlayer) {
+        elements.playerCardPanel.classList.add("is-hidden");
+        return;
+    }
+
+    elements.playerCardPanel.classList.remove("is-hidden");
     if (!currentPlayer) {
         setImageSource(elements.playerAvatar, getDefaultAvatarUrl());
         elements.playerName.textContent = "Waiting For Login";
@@ -452,6 +556,7 @@ function renderPlayerCard() {
         elements.playerPlatform.textContent = "-";
         elements.playerLevel.textContent = "-";
         elements.playerRegion.textContent = "-";
+        elements.playerAvatarUploadButton.classList.add("is-hidden");
         return;
     }
 
@@ -462,6 +567,52 @@ function renderPlayerCard() {
     elements.playerPlatform.textContent = currentPlayer.platform || "-";
     elements.playerLevel.textContent = currentPlayer.accountLevel ?? "-";
     elements.playerRegion.textContent = currentPlayer.regionCode || "-";
+    elements.playerAvatarUploadButton.classList.remove("is-hidden");
+}
+
+function renderPlayerSwitcher() {
+    if (!state.session) {
+        elements.playerSwitcher.classList.add("is-hidden");
+        elements.playerSwitcherList.innerHTML = "";
+        return;
+    }
+
+    elements.playerSwitcher.classList.remove("is-hidden");
+
+    if (!state.boundPlayers.length) {
+        elements.playerSwitcherHint.textContent = "No game account is bound yet. Bind one to load live stats.";
+        elements.playerSwitcherList.innerHTML = "";
+        return;
+    }
+
+    elements.playerSwitcherHint.textContent = state.boundPlayers.length > 1
+        ? "Choose another bound account to switch the current dashboard view."
+        : "This account currently has one bound game account.";
+
+    const currentPlayerId = state.session?.primaryPlayer?.playerId;
+    elements.playerSwitcherList.innerHTML = state.boundPlayers.map((player) => `
+        <button
+            class="player-switcher__button ${player.playerId === currentPlayerId ? "is-active" : ""}"
+            type="button"
+            data-player-id="${player.playerId}"
+            ${state.isSwitchingPlayer ? "disabled" : ""}
+        >
+            <div class="player-switcher__main">
+                <strong>${escapeHtml(player.fullName || player.gameName || "Unnamed Player")}</strong>
+                <span>${escapeHtml(player.platform || "-")} | ${escapeHtml(player.regionCode || "-")} | ${escapeHtml(player.rankTier || "Unranked")}</span>
+            </div>
+            <div class="player-switcher__meta">
+                ${player.primary ? '<span class="player-switcher__pill is-primary">Primary</span>' : ""}
+                <span>Lv.${escapeHtml(player.accountLevel ?? "-")}</span>
+            </div>
+        </button>
+    `).join("");
+
+    elements.playerSwitcherList.querySelectorAll("[data-player-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+            handlePlayerActivate(Number(button.dataset.playerId));
+        });
+    });
 }
 
 function renderMetrics(match) {
@@ -574,6 +725,140 @@ function renderHero(match) {
     }
 }
 
+function renderAdminPanel() {
+    const isAdmin = state.session?.roleCode === "ADMIN";
+    if (!isAdmin) {
+        elements.adminPanel.classList.add("is-hidden");
+        elements.adminSummary.innerHTML = "";
+        elements.adminUserList.innerHTML = "";
+        return;
+    }
+
+    const overview = state.adminOverview || createEmptyAdminOverview();
+    elements.adminPanel.classList.remove("is-hidden");
+    elements.adminSummary.innerHTML = [
+        { label: "Users", value: overview.totalUsers },
+        { label: "Bound Accounts", value: overview.totalPlayers },
+        { label: "Tracked Matches", value: overview.totalTrackedMatches }
+    ].map((item) => `
+        <div class="admin-summary__card">
+            <span>${item.label}</span>
+            <strong>${formatCount(item.value)}</strong>
+        </div>
+    `).join("");
+
+    if (!overview.users.length) {
+        elements.adminUserList.innerHTML = `<div class="admin-empty">No user data is available yet.</div>`;
+        return;
+    }
+
+    elements.adminUserList.innerHTML = overview.users.map((user) => renderAdminUserCard(user)).join("");
+}
+
+function renderAdminUserCard(user) {
+    const playersMarkup = user.players?.length
+        ? user.players.map((player) => renderAdminPlayerCard(player)).join("")
+        : `<div class="admin-empty">This user does not have a bound VALORANT account yet.</div>`;
+
+    return `
+        <article class="admin-user-card">
+            <div class="admin-user__header">
+                <div class="admin-user__identity">
+                    <img class="admin-user__avatar" src="${escapeHtml(user.avatarUrl || BLANK_IMAGE)}" alt="User avatar">
+                    <div>
+                        <strong>${escapeHtml(user.displayName || user.username || "Unnamed User")}</strong>
+                        <p>${escapeHtml(user.username || "-")} | ${escapeHtml(user.email || "No email")}</p>
+                    </div>
+                </div>
+                <div class="admin-user__pills">
+                    <span class="status-pill ${user.roleCode === "ADMIN" ? "status-pill--admin" : ""}">${escapeHtml(user.roleCode || "USER")}</span>
+                    <span class="status-pill">${escapeHtml(user.status || "ACTIVE")}</span>
+                </div>
+            </div>
+            <div class="admin-user__facts">
+                <div class="admin-fact">
+                    <span>Registered</span>
+                    <strong>${escapeHtml(formatDateTime(user.createdAt))}</strong>
+                </div>
+                <div class="admin-fact">
+                    <span>Last Login</span>
+                    <strong>${escapeHtml(formatDateTime(user.lastLoginAt))}</strong>
+                </div>
+                <div class="admin-fact">
+                    <span>Bound Accounts</span>
+                    <strong>${formatCount(user.players?.length || 0)}</strong>
+                </div>
+                <div class="admin-fact">
+                    <span>User ID</span>
+                    <strong>#${formatCount(user.userId)}</strong>
+                </div>
+            </div>
+            <div class="admin-player-list">${playersMarkup}</div>
+        </article>
+    `;
+}
+
+function renderAdminPlayerCard(player) {
+    return `
+        <article class="admin-player-card">
+            <div class="admin-player__header">
+                <div class="admin-player__identity">
+                    <div>
+                        <strong>${escapeHtml(player.fullName || player.gameName || "Unnamed Player")}</strong>
+                        <p>${escapeHtml(player.platform || "-")} | ${escapeHtml(player.regionCode || "-")} | ${escapeHtml(player.rankTier || "Unranked")}</p>
+                    </div>
+                </div>
+                <div class="admin-player__pills">
+                    ${player.primary ? '<span class="status-pill status-pill--primary">Primary</span>' : ""}
+                    <span class="status-pill">${escapeHtml(player.status || "ACTIVE")}</span>
+                </div>
+            </div>
+            <div class="admin-player__stats">
+                <div class="admin-stat">
+                    <span>Matches</span>
+                    <strong>${formatCount(player.matchCount)}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>Avg ACS</span>
+                    <strong>${escapeHtml(formatMetric(player.averageAcs, 1))}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>KD</span>
+                    <strong>${escapeHtml(formatMetric(player.kdRatio, 2))}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>Avg K / D / A</span>
+                    <strong>${escapeHtml(`${formatMetric(player.averageKills, 1)} / ${formatMetric(player.averageDeaths, 1)} / ${formatMetric(player.averageAssists, 1)}`)}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>Win Rate</span>
+                    <strong>${escapeHtml(formatMetric(player.winRate, 1, "%"))}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>HS Rate</span>
+                    <strong>${escapeHtml(formatMetric(player.headshotRate, 1, "%"))}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>KAST</span>
+                    <strong>${escapeHtml(formatMetric(player.kastRate, 1, "%"))}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>Account Level</span>
+                    <strong>${escapeHtml(player.accountLevel ?? "-")}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>Player ID</span>
+                    <strong>#${formatCount(player.playerId)}</strong>
+                </div>
+                <div class="admin-stat">
+                    <span>Last Match</span>
+                    <strong>${escapeHtml(formatDateTime(player.lastMatchAt))}</strong>
+                </div>
+            </div>
+        </article>
+    `;
+}
+
 function renderEmpty(message) {
     elements.heroTitle.textContent = message;
     elements.heroMap.textContent = "-";
@@ -601,6 +886,8 @@ function render() {
     setLockedState(!state.session);
     renderAuthPanel();
     renderPlayerCard();
+    renderPlayerSwitcher();
+    renderAdminPanel();
     applyBrandAsset();
 
     const selectedMatch = getSelectedMatch();
@@ -699,14 +986,52 @@ async function loadCurrentPlayerMatches() {
     setMatches(details, "API", "Live match data loaded for the current account's primary player.");
 }
 
+async function loadBoundPlayers() {
+    if (!state.session) {
+        state.boundPlayers = [];
+        return;
+    }
+
+    const players = await fetchApi("/api/v1/players/me", { auth: true });
+    state.boundPlayers = sortPlayers(players || []);
+
+    const currentPlayerId = state.session.primaryPlayer?.playerId;
+    if (!currentPlayerId && state.boundPlayers[0]) {
+        state.session = {
+            ...state.session,
+            primaryPlayer: state.boundPlayers[0]
+        };
+        return;
+    }
+
+    const currentPlayer = state.boundPlayers.find((player) => player.playerId === currentPlayerId);
+    if (currentPlayer) {
+        state.session = {
+            ...state.session,
+            primaryPlayer: currentPlayer
+        };
+    }
+}
+
+async function loadAdminOverview() {
+    if (state.session?.roleCode !== "ADMIN") {
+        state.adminOverview = null;
+        return;
+    }
+    state.adminOverview = await fetchApi("/api/v1/admin/users/overview", { auth: true });
+    renderAdminPanel();
+}
+
 async function bootstrapSession() {
     if (!state.token) {
         state.session = null;
+        state.boundPlayers = [];
         state.dashboardAssets = createEmptyAssets();
+        state.adminOverview = null;
         state.authMessage = shouldFallbackToLocalApi()
             ? `Current page is using backend API ${describeApiBase()}. Log in to view live player data.`
             : "Log in to view live player data.";
-        setMatches([], "LOCKED", "Log in to view live player data.");
+        setMatches(previewMatches, "PREVIEW", "Preview mode is shown before login. Live data will replace it after authentication.");
         return;
     }
 
@@ -716,16 +1041,37 @@ async function bootstrapSession() {
     try {
         const sessionContext = await fetchApi("/api/v1/auth/session-context", { auth: true });
         state.session = sessionContext;
+        state.boundPlayers = [];
         state.dashboardAssets = sessionContext.dashboardAssets || createEmptyAssets();
+        state.adminOverview = null;
         state.authMessage = sessionContext.primaryPlayer
             ? "Session ready. Loading live stats for the current primary player."
-            : "Session ready, but this account does not have a primary player yet.";
+            : sessionContext.roleCode === "ADMIN"
+                ? "Administrator session ready. Loading user overview."
+                : "Session ready, but this account does not have a primary player yet.";
+
+        await loadBoundPlayers();
         await loadCurrentPlayerMatches();
+
+        if (sessionContext.roleCode === "ADMIN") {
+            try {
+                await loadAdminOverview();
+                state.authMessage = sessionContext.primaryPlayer
+                    ? "Session ready. Live stats and admin overview loaded."
+                    : "Administrator session ready. User overview loaded.";
+            } catch (adminError) {
+                console.warn("admin overview failed", adminError);
+                state.adminOverview = createEmptyAdminOverview();
+                state.authMessage = `Admin overview failed to load: ${adminError.message}`;
+            }
+        }
     } catch (error) {
         console.warn("session bootstrap failed", error);
         setStoredToken(null);
         state.session = null;
+        state.boundPlayers = [];
         state.dashboardAssets = createEmptyAssets();
+        state.adminOverview = null;
         state.authMessage = "Session expired. Please login again.";
         setMatches([], "LOCKED", "Session expired. Log in again to view player data.");
     } finally {
@@ -765,24 +1111,139 @@ async function handleLogin(event) {
     }
 }
 
-async function handleRefresh() {
-    if (!state.session?.primaryPlayer) {
-        state.authMessage = "This account does not have a primary player to refresh.";
+async function handleRegister(event) {
+    event.preventDefault();
+    const username = elements.registerUsernameInput.value.trim();
+    const email = elements.registerEmailInput.value.trim();
+    const displayName = elements.registerDisplayNameInput.value.trim();
+    const password = elements.registerPasswordInput.value;
+    const confirmPassword = elements.registerConfirmPasswordInput.value;
+
+    if (!username || !email || !password || !confirmPassword) {
+        state.authMessage = "Please complete username, email, password and password confirmation.";
+        renderAuthPanel();
+        return;
+    }
+    if (password.length < 8) {
+        state.authMessage = "Password must be at least 8 characters long.";
+        renderAuthPanel();
+        return;
+    }
+    if (password !== confirmPassword) {
+        state.authMessage = "The two passwords do not match.";
         renderAuthPanel();
         return;
     }
 
-    state.authMessage = "Refreshing live stats for the current primary player...";
+    elements.registerButton.disabled = true;
+    state.authMessage = "Creating account and starting session...";
     renderAuthPanel();
 
     try {
-        await loadCurrentPlayerMatches();
-        state.authMessage = "Live stats refreshed.";
+        const registerResult = await fetchApi("/api/v1/auth/register", {
+            method: "POST",
+            body: {
+                username,
+                email,
+                displayName: displayName || null,
+                password
+            }
+        });
+        setStoredToken(registerResult.accessToken);
+        clearRegisterForm();
+        await bootstrapSession();
+    } catch (error) {
+        console.warn("register failed", error);
+        state.authMessage = `Register failed: ${error.message}`;
+        renderAuthPanel();
+    } finally {
+        elements.registerButton.disabled = false;
+    }
+}
+
+async function handleRefresh() {
+    const shouldRefreshPlayer = Boolean(state.session?.primaryPlayer);
+    const shouldRefreshAdmin = state.session?.roleCode === "ADMIN";
+
+    if (!shouldRefreshPlayer && !shouldRefreshAdmin) {
+        state.authMessage = "This account does not have data to refresh yet.";
+        renderAuthPanel();
+        return;
+    }
+
+    state.authMessage = shouldRefreshAdmin
+        ? "Refreshing live stats and admin overview..."
+        : "Refreshing live stats for the current primary player...";
+    renderAuthPanel();
+
+    try {
+        await loadBoundPlayers();
+        if (shouldRefreshPlayer) {
+            await loadCurrentPlayerMatches();
+        }
+        if (shouldRefreshAdmin) {
+            await loadAdminOverview();
+        }
+        state.authMessage = shouldRefreshAdmin ? "Live stats and admin overview refreshed." : "Live stats refreshed.";
     } catch (error) {
         console.warn("refresh failed", error);
         state.authMessage = `Refresh failed: ${error.message}`;
     }
     render();
+}
+
+async function handlePlayerActivate(playerId) {
+    if (!state.session || !playerId || state.isSwitchingPlayer) {
+        return;
+    }
+    if (state.session.primaryPlayer?.playerId === playerId) {
+        return;
+    }
+
+    state.isSwitchingPlayer = true;
+    state.authMessage = "Switching current game account...";
+    render();
+
+    try {
+        const currentPlayer = await fetchApi(`/api/v1/players/${playerId}/activate`, {
+            method: "POST",
+            auth: true
+        });
+        state.session = {
+            ...state.session,
+            primaryPlayer: currentPlayer
+        };
+        await loadBoundPlayers();
+        await loadCurrentPlayerMatches();
+        state.authMessage = `Switched to ${currentPlayer.fullName || currentPlayer.gameName}.`;
+    } catch (error) {
+        console.warn("player activate failed", error);
+        state.authMessage = `Account switch failed: ${error.message}`;
+    } finally {
+        state.isSwitchingPlayer = false;
+        render();
+    }
+}
+
+async function handleAdminRefresh() {
+    if (state.session?.roleCode !== "ADMIN") {
+        return;
+    }
+
+    elements.adminRefreshButton.disabled = true;
+    state.authMessage = "Refreshing admin overview...";
+    renderAuthPanel();
+
+    try {
+        await loadAdminOverview();
+        state.authMessage = "Admin overview refreshed.";
+    } catch (error) {
+        console.warn("admin refresh failed", error);
+        state.authMessage = `Admin refresh failed: ${error.message}`;
+    } finally {
+        elements.adminRefreshButton.disabled = false;
+        render();
+    }
 }
 
 async function handleUserAvatarUpload(event) {
@@ -814,6 +1275,9 @@ async function handleUserAvatarUpload(event) {
             avatarUrl: result.avatarUrl
         };
         state.authMessage = "User avatar updated.";
+        if (state.session.roleCode === "ADMIN") {
+            await loadAdminOverview();
+        }
     } catch (error) {
         console.warn("user avatar upload failed", error);
         state.authMessage = `User avatar upload failed: ${error.message}`;
@@ -823,21 +1287,94 @@ async function handleUserAvatarUpload(event) {
     }
 }
 
+async function handlePlayerAvatarUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+        return;
+    }
+    const currentPlayer = state.session?.primaryPlayer;
+    if (!state.token || !state.session || !currentPlayer?.playerId) {
+        state.authMessage = "Please select a current game account before uploading a player avatar.";
+        renderAuthPanel();
+        event.target.value = "";
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    state.authMessage = "Uploading player avatar...";
+    renderAuthPanel();
+
+    try {
+        const result = await fetchApi(`/api/v1/players/${currentPlayer.playerId}/avatar`, {
+            method: "POST",
+            auth: true,
+            formData
+        });
+
+        const nextPrimaryPlayer = {
+            ...currentPlayer,
+            avatarUrl: result.avatarUrl
+        };
+
+        state.session = {
+            ...state.session,
+            primaryPlayer: nextPrimaryPlayer
+        };
+
+        state.boundPlayers = state.boundPlayers.map((player) => {
+            if (player.playerId !== currentPlayer.playerId) {
+                return player;
+            }
+            return {
+                ...player,
+                avatarUrl: result.avatarUrl
+            };
+        });
+
+        state.authMessage = "Player avatar updated.";
+    } catch (error) {
+        console.warn("player avatar upload failed", error);
+        state.authMessage = `Player avatar upload failed: ${error.message}`;
+    } finally {
+        event.target.value = "";
+        render();
+    }
+}
+
+function clearRegisterForm() {
+    elements.registerUsernameInput.value = "";
+    elements.registerEmailInput.value = "";
+    elements.registerDisplayNameInput.value = "";
+    elements.registerPasswordInput.value = "";
+    elements.registerConfirmPasswordInput.value = "";
+}
+
 function handleLogout() {
     setStoredToken(null);
     state.session = null;
+    state.boundPlayers = [];
     state.dashboardAssets = createEmptyAssets();
+    state.adminOverview = null;
     state.authMessage = "Logged out. Log in to view player data.";
     elements.usernameInput.value = "";
     elements.passwordInput.value = "";
-    setMatches([], "LOCKED", "Log in to view live player data.");
+    clearRegisterForm();
+    setAuthMode("login");
+    setMatches(previewMatches, "PREVIEW", "Preview mode is shown before login. Live data will replace it after authentication.");
 }
 
 function bindEvents() {
+    elements.loginModeButton.addEventListener("click", () => setAuthMode("login"));
+    elements.registerModeButton.addEventListener("click", () => setAuthMode("register"));
     elements.loginForm.addEventListener("submit", handleLogin);
+    elements.registerForm.addEventListener("submit", handleRegister);
     elements.refreshButton.addEventListener("click", handleRefresh);
+    elements.adminRefreshButton.addEventListener("click", handleAdminRefresh);
     elements.logoutButton.addEventListener("click", handleLogout);
     elements.userAvatarInput.addEventListener("change", handleUserAvatarUpload);
+    elements.playerAvatarInput.addEventListener("change", handlePlayerAvatarUpload);
 }
 
 function init() {

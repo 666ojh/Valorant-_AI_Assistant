@@ -1,35 +1,38 @@
-# Valorant Matches Assistant 后端说明
+# Valorant Matches Assistant Backend
 
 ## 项目概览
 
-这是一个基于 `Spring Boot 3`、`Spring Security`、`MyBatis-Plus`、`MySQL` 的后端项目，当前代码重点覆盖以下能力：
+这是一个基于 `Spring Boot 3`、`Spring Security`、`MyBatis-Plus`、`MySQL` 的后端项目，当前已经提供：
 
-- 用户登录与 JWT 鉴权
-- 当前登录用户信息查询
-- 当前会话上下文查询
+- 用户登录
+- 用户注册
+- JWT 鉴权
+- 当前用户与会话上下文查询
 - 玩家比赛历史查询
-- 玩家比赛详情查询
-- 图片上传到阿里云 OSS
+- 玩家单场比赛详情查询
+- 图片上传到 OSS
 - 当前用户头像上传并回写数据库
-- 上传本地图片并自动回写玩家头像
-- 静态仪表盘页面访问
+- 玩家头像上传并回写数据库
+- 静态仪表盘页面
+- 管理员用户总览页面数据接口
 
-当前仓库里已经包含知识库、聊天、向量检索相关表结构和基础模块目录，但这些能力目前还没有开放成可直接调用的业务接口。
+当前仓库里还包含知识库、聊天、向量检索相关表结构和目录，但这些能力目前还没有开放成可直接调用的业务接口。
 
 ## 当前可用功能
 
-### 1. 登录与鉴权
+### 1. 认证与会话
 
 当前已实现：
 
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/register`
 - `GET /api/v1/auth/me`
 - `GET /api/v1/auth/session-context`
 
 说明：
 
-- 登录成功后会返回 `accessToken`
-- 除登录接口、健康检查接口、仪表盘静态页外，其他接口默认都需要携带 `Bearer Token`
+- 登录或注册成功后都会返回 `accessToken`
+- 除登录、注册、健康检查、仪表盘静态资源外，其余接口默认都需要 `Bearer Token`
 - JWT 过期时间由 `VALORANT_ASSISTANT_JWT_EXPIRATION_MINUTES` 控制
 
 ### 2. 玩家比赛数据
@@ -38,53 +41,56 @@
 
 - `GET /api/v1/players/{playerId}/matches`
 - `GET /api/v1/players/{playerId}/matches/{matchId}`
+- `GET /api/v1/players/me`
+- `POST /api/v1/players/{playerId}/activate`
 
 说明：
 
-- 只能查询当前登录用户自己名下的玩家数据
+- 只能查询当前登录用户自己名下绑定的玩家数据
 - 比赛历史支持分页
 - 比赛详情会按 `playerId + matchId` 返回单场对局数据
+- 可以查询当前登录用户已绑定的全部游戏账号
+- 可以把某个已绑定游戏账号切换为当前主账号
 
-### 3. 图片上传到阿里云 OSS
+### 3. 媒体上传
 
 当前已实现：
 
 - `POST /api/v1/media/images`
-
-说明：
-
-- 上传成功后返回 OSS 对象路径和最终图片地址
-- 支持图片类型：`JPEG`、`PNG`、`WebP`、`GIF`、`AVIF`
-- 默认最大文件大小受以下配置共同控制：
-  - `VALORANT_ASSISTANT_UPLOAD_MAX_FILE_SIZE`
-  - `VALORANT_ASSISTANT_UPLOAD_MAX_REQUEST_SIZE`
-  - `VALORANT_ASSISTANT_OSS_MAX_FILE_SIZE`
-
-### 4. 上传玩家头像并回写数据库
-
-当前已实现：
-
+- `POST /api/v1/users/me/avatar`
 - `POST /api/v1/players/{playerId}/avatar`
 
 说明：
 
-- 这个接口会把你上传的本地图片先传到 OSS
-- 然后自动把返回的图片地址写回 `player.avatar_url`
-- 只允许修改当前登录用户自己名下玩家的头像
+- 图片会先上传到 OSS
+- 用户头像会回写到 `user_profile.avatar_url`
+- 玩家头像会回写到 `player.avatar_url`
+- 支持 `JPEG`、`PNG`、`WebP`、`GIF`、`AVIF`
 
-### 5. 上传当前用户头像并回写数据库
+### 4. 管理员总览
 
 当前已实现：
 
-- `POST /api/v1/users/me/avatar`
+- `GET /api/v1/admin/users/overview`
 
 说明：
 
-- 这个接口会把当前登录用户上传的头像图片先传到 OSS
-- 然后自动把返回的图片地址写回 `user_profile.avatar_url`
-- 仪表盘登录卡片上的 `user_avatar` 会优先显示这个地址
+- 仅 `ADMIN` 角色可访问
+- 返回所有用户的基础信息
+- 返回每个用户名下绑定的游戏账号
+- 返回每个游戏账号的聚合数据，例如：
+  - `matchCount`
+  - `winRate`
+  - `averageAcs`
+  - `kdRatio`
+  - `averageKills`
+  - `averageDeaths`
+  - `averageAssists`
+  - `headshotRate`
+  - `kastRate`
+- 不返回逐场比赛明细
 
-### 6. 仪表盘静态页面
+### 5. 仪表盘前端
 
 当前已实现：
 
@@ -93,67 +99,123 @@
 说明：
 
 - 页面资源位于 `backend/src/main/resources/static/valorant-dashboard`
-- 本地默认 logo 使用 `art/Logo Wallpapers/VALORANT_Logo_V_thumbnail.jpg` 的静态副本
-- 未登录时，`Recent Matches`、`MATCH SNAPSHOT`、玩家信息等数据区域会进入模糊锁定态，并显示 `Log in to view`
-- 如果配置了 `OSS` 基础地址，页面里的地图图、英雄图、默认头像会优先按 OSS 地址拼接展示
+- 支持登录、注册、当前用户仪表盘
+- 当管理员登录后，页面会额外显示管理员总览面板
+- 管理员面板展示的是用户与账号汇总数据，不会展开到单局比赛细节
 
-## 当前接口清单
+## 接口清单
 
-### 无需登录即可访问
+### 无需登录
 
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/register`
 - `GET /actuator/health`
 - `GET /actuator/info`
 - `GET /valorant-dashboard`
 
-### 需要登录后访问
+### 需要登录
 
 - `GET /api/v1/auth/me`
 - `GET /api/v1/auth/session-context`
 - `GET /api/v1/players/{playerId}/matches`
 - `GET /api/v1/players/{playerId}/matches/{matchId}`
+- `GET /api/v1/players/me`
 - `POST /api/v1/media/images`
 - `POST /api/v1/users/me/avatar`
 - `POST /api/v1/players/{playerId}/avatar`
+- `POST /api/v1/players/{playerId}/activate`
+
+### 需要管理员权限
+
+- `GET /api/v1/admin/users/overview`
 
 ## 典型用法
 
-### 1. 登录获取 Token
+### 1. 注册
 
-请求：
+适合在 Apifox 中创建一个 `POST` 请求，直接粘贴下面参数：
 
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"usernameOrEmail\":\"admin\",\"password\":\"Admin@123456\"}"
+```text
+Method:
+POST
+
+Path:
+/api/v1/auth/register
+
+Headers:
+Content-Type: application/json
+
+Body (JSON):
+{
+  "username": "player01",
+  "email": "player01@example.com",
+  "displayName": "Player 01",
+  "password": "Password@123"
+}
 ```
 
-入参说明：
+### 2. 登录获取 Token
 
-- `usernameOrEmail`：用户名或邮箱
-- `password`：密码
+```text
+Method:
+POST
 
-### 2. 查询当前用户
+Path:
+/api/v1/auth/login
 
-```bash
-curl http://localhost:8080/api/v1/auth/me \
-  -H "Authorization: Bearer <token>"
+Headers:
+Content-Type: application/json
+
+Body (JSON):
+{
+  "usernameOrEmail": "admin",
+  "password": "Admin@123456"
+}
 ```
 
-### 3. 查询当前会话上下文
+### 3. 查询当前用户
 
-这个接口适合前端初始化时一次性拉取用户、主玩家、仪表盘资源地址：
+```text
+Method:
+GET
 
-```bash
-curl http://localhost:8080/api/v1/auth/session-context \
-  -H "Authorization: Bearer <token>"
+Path:
+/api/v1/auth/me
+
+Headers:
+Authorization: Bearer <token>
 ```
 
-### 4. 查询玩家比赛历史
+### 4. 查询会话上下文
 
-```bash
-curl "http://localhost:8080/api/v1/players/1/matches?page=0&size=20" \
-  -H "Authorization: Bearer <token>"
+适合前端初始化时一次性拉取用户、主玩家、仪表盘资源地址：
+
+```text
+Method:
+GET
+
+Path:
+/api/v1/auth/session-context
+
+Headers:
+Authorization: Bearer <token>
+```
+
+### 5. 查询玩家比赛历史
+
+```text
+Method:
+GET
+
+Path:
+/api/v1/players/1/matches
+
+Headers:
+Authorization: Bearer <token>
+
+Query:
+page=0
+size=20
 ```
 
 参数说明：
@@ -161,60 +223,124 @@ curl "http://localhost:8080/api/v1/players/1/matches?page=0&size=20" \
 - `page`：页码，从 `0` 开始
 - `size`：每页条数，范围 `1` 到 `100`
 
-### 5. 查询玩家比赛详情
+### 6. 查询玩家单场比赛详情
 
-```bash
-curl http://localhost:8080/api/v1/players/1/matches/1001 \
-  -H "Authorization: Bearer <token>"
+```text
+Method:
+GET
+
+Path:
+/api/v1/players/1/matches/1001
+
+Headers:
+Authorization: Bearer <token>
 ```
 
-### 6. 上传图片到 OSS
+### 7. 查询当前用户绑定的全部游戏账号
 
-```bash
-curl -X POST http://localhost:8080/api/v1/media/images \
-  -H "Authorization: Bearer <token>" \
-  -F "file=@D:/images/avatar.png" \
-  -F "folder=avatars"
+```text
+Method:
+GET
+
+Path:
+/api/v1/players/me
+
+Headers:
+Authorization: Bearer <token>
 ```
 
-参数说明：
+### 8. 切换当前主游戏账号
 
-- `file`：本地图片文件
-- `folder`：可选，OSS 下的业务目录
+```text
+Method:
+POST
 
-返回值里通常会包含：
+Path:
+/api/v1/players/2/activate
 
-- `objectKey`
-- `url`
-- `originalFilename`
-- `contentType`
-- `size`
-
-### 7. 上传本地图片并回写玩家头像
-
-```bash
-curl -X POST http://localhost:8080/api/v1/players/1/avatar \
-  -H "Authorization: Bearer <token>" \
-  -F "file=@D:/images/player-avatar.png"
+Headers:
+Authorization: Bearer <token>
 ```
 
-这个接口成功后会完成两件事：
+### 9. 上传图片到 OSS
 
-- 图片上传到 OSS
-- 数据库 `player.avatar_url` 更新为 OSS 地址
+```text
+Method:
+POST
 
-### 8. 上传当前用户头像并回写 user_profile
+Path:
+/api/v1/media/images
 
-```bash
-curl -X POST http://localhost:8080/api/v1/users/me/avatar \
-  -H "Authorization: Bearer <token>" \
-  -F "file=@D:/images/user-avatar.png"
+Headers:
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+Body (form-data):
+file = <选择本地文件，类型设为 File>
+folder = avatars
 ```
 
-这个接口成功后会完成两件事：
+### 10. 上传当前用户头像
 
-- 图片上传到 OSS
-- 数据库 `user_profile.avatar_url` 更新为 OSS 地址
+```text
+Method:
+POST
+
+Path:
+/api/v1/users/me/avatar
+
+Headers:
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+Body (form-data):
+file = <选择本地文件，类型设为 File>
+```
+
+### 11. 上传玩家头像
+
+```text
+Method:
+POST
+
+Path:
+/api/v1/players/1/avatar
+
+Headers:
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+Body (form-data):
+file = <选择本地文件，类型设为 File>
+```
+
+### 12. 查询管理员用户总览
+
+```text
+Method:
+GET
+
+Path:
+/api/v1/admin/users/overview
+
+Headers:
+Authorization: Bearer <admin-token>
+```
+
+## 默认管理员
+
+项目启动时支持自动初始化管理员账号：
+
+- 用户名：`admin`
+- 密码：`Admin@123456`
+
+相关配置：
+
+- `VALORANT_ASSISTANT_BOOTSTRAP_SEED_ADMIN`
+- `VALORANT_ASSISTANT_BOOTSTRAP_ADMIN_USERNAME`
+- `VALORANT_ASSISTANT_BOOTSTRAP_ADMIN_PASSWORD`
+
+如果数据库里已经存在同名用户，则不会重复创建。
 
 ## 环境变量说明
 
@@ -227,7 +353,7 @@ curl -X POST http://localhost:8080/api/v1/users/me/avatar \
 - `VALORANT_ASSISTANT_JWT_SECRET`
 - `VALORANT_ASSISTANT_JWT_EXPIRATION_MINUTES`
 
-### MySQL 配置
+### MySQL
 
 - `VALORANT_ASSISTANT_MYSQL_HOST`
 - `VALORANT_ASSISTANT_MYSQL_PORT`
@@ -235,7 +361,7 @@ curl -X POST http://localhost:8080/api/v1/users/me/avatar \
 - `VALORANT_ASSISTANT_MYSQL_USERNAME`
 - `VALORANT_ASSISTANT_MYSQL_PASSWORD`
 
-### OSS 配置
+### OSS
 
 - `VALORANT_ASSISTANT_OSS_ENDPOINT`
 - `VALORANT_ASSISTANT_OSS_BUCKET`
@@ -245,26 +371,25 @@ curl -X POST http://localhost:8080/api/v1/users/me/avatar \
 - `VALORANT_ASSISTANT_OSS_ROOT_PATH`
 - `VALORANT_ASSISTANT_OSS_MAX_FILE_SIZE`
 
-推荐说明：
-
-- `VALORANT_ASSISTANT_OSS_ENDPOINT` 例如：`https://oss-cn-hangzhou.aliyuncs.com`
-- `VALORANT_ASSISTANT_OSS_PUBLIC_BASE_URL` 例如：`https://your-bucket.oss-cn-hangzhou.aliyuncs.com`
-- 如果你接了 CDN，这里也可以直接填 CDN 域名
-
-### 上传限制配置
+### 上传限制
 
 - `VALORANT_ASSISTANT_UPLOAD_MAX_FILE_SIZE`
 - `VALORANT_ASSISTANT_UPLOAD_MAX_REQUEST_SIZE`
 
-### 默认管理员初始化
+### 管理员初始化
 
 - `VALORANT_ASSISTANT_BOOTSTRAP_SEED_ADMIN`
 - `VALORANT_ASSISTANT_BOOTSTRAP_ADMIN_USERNAME`
 - `VALORANT_ASSISTANT_BOOTSTRAP_ADMIN_PASSWORD`
 
-根目录变量示例见 [.env.example](/D:/valorant_matches_assistant/.env.example)。
+示例见 [.env.example](/D:/valorant_matches_assistant/.env.example)。
 
-## 数据库说明
+说明：
+
+- `.env.example` 里还保留了 `Redis`、`MinIO`、`Milvus` 等预留变量
+- 当前这几个能力还没有接入到本 README 所列出的已开放接口中
+
+## 数据库
 
 初始化数据库前，请先执行 [schema.sql](/D:/valorant_matches_assistant/docs/database/schema.sql)。
 
@@ -276,13 +401,9 @@ curl -X POST http://localhost:8080/api/v1/users/me/avatar \
 - `match_record`
 - `player_match_stats`
 
-当前头像上传回写使用的字段是：
-
-- `player.avatar_url`
-
 ## 本地启动
 
-### 方式一：命令行启动
+### 方式一：命令行
 
 ```bash
 cd backend
@@ -291,7 +412,7 @@ mvn spring-boot:run
 
 ### 方式二：IntelliJ IDEA
 
-建议把 [backend](/D:/valorant_matches_assistant/backend/README.md) 目录作为项目根打开，而不是仓库根目录。
+建议把 [backend](/D:/valorant_matches_assistant/backend/README.md) 目录作为项目根打开。
 
 推荐设置：
 
@@ -299,35 +420,32 @@ mvn spring-boot:run
 - 重新导入 [pom.xml](/D:/valorant_matches_assistant/backend/pom.xml)
 - 使用共享运行配置 `ValorantAssistant Local`
 
-项目中还提供了这些辅助文件：
+项目内还有这些辅助文件：
 
-- [settings.xml](/D:/valorant_matches_assistant/backend/settings.xml)：项目本地 Maven 配置
-- [.mvn/maven.config](/D:/valorant_matches_assistant/backend/.mvn/maven.config)：让 Maven 默认优先使用项目配置
-- [application-local.yml](/D:/valorant_matches_assistant/backend/src/main/resources/application-local.yml)：本地开发配置
+- [settings.xml](/D:/valorant_matches_assistant/backend/settings.xml)
+- [application-local.yml](/D:/valorant_matches_assistant/backend/src/main/resources/application-local.yml)
 
 ## 当前未开放的能力
 
-下面这些内容目前在仓库中有表结构、目录或预留设计，但还不能算作已开放功能：
+下面这些内容在仓库中有表结构、目录或预留设计，但目前还不能视为已开放功能：
 
 - 知识库文档上传与解析流程
-- Embedding 与向量库入库
+- Embedding 与向量库写入
 - RAG 检索问答
 - 聊天会话与聊天消息业务接口
 
-文档中不应把这些内容写成“已可用”，除非对应接口和调用方式已经真正落地。
-
 ## 文档维护约定
 
-这个 README 现在按“当前代码真实可用能力”维护，后续如果新增、删除或修改以下内容，需要同步更新本文件：
+后续如果出现以下变化，请同步更新本文件：
 
 - 新增或删除接口
-- 鉴权规则变化
-- 返回字段或调用方式变化
+- 角色权限规则变化
+- 返回字段变化
 - 环境变量变化
-- 图片上传、头像回写、仪表盘资源加载规则变化
+- 仪表盘登录、注册、管理员视图行为变化
 
 维护原则：
 
-- 已写进 README 的内容应当可以直接按文档操作
-- 还没实现的内容不要写成已支持
-- 示例命令优先保持可复制、可执行
+- README 只描述当前真实可用能力
+- 未实现的内容不要写成已支持
+- 示例命令尽量保持可直接复制执行

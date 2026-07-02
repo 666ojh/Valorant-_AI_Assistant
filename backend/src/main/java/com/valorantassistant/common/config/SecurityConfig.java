@@ -46,6 +46,7 @@ public class SecurityConfig {
                     "/valorant-dashboard",
                     "/valorant-dashboard/**",
                     "/api/v1/auth/login",
+                    "/api/v1/auth/register",
                     "/actuator/health",
                     "/actuator/info"
                 ).permitAll()

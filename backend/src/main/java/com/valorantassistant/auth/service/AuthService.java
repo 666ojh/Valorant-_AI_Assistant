@@ -5,6 +5,7 @@ import com.valorantassistant.auth.dto.CurrentPlayerResponse;
 import com.valorantassistant.auth.dto.DashboardAssetsResponse;
 import com.valorantassistant.auth.dto.LoginRequest;
 import com.valorantassistant.auth.dto.LoginResponse;
+import com.valorantassistant.auth.dto.RegisterRequest;
 import com.valorantassistant.auth.dto.SessionContextResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.valorantassistant.common.config.DashboardAssetService;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -65,6 +67,39 @@ public class AuthService {
         user.setLastLoginAt(LocalDateTime.now());
         user.setLastLoginIp(clientIp);
         userMapper.updateById(user);
+
+        String accessToken = jwtTokenProvider.generateToken(user.getId(), user.getUsername(), user.getRoleCode());
+        return new LoginResponse(accessToken, user.getId(), user.getUsername(), user.getRoleCode());
+    }
+
+    @Transactional
+    public LoginResponse register(RegisterRequest request, String clientIp) {
+        String username = normalize(request.username());
+        String email = normalizeEmail(request.email());
+        String displayName = normalizeOptional(request.displayName());
+
+        if (userMapper.existsByUsername(username)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already registered");
+        }
+        if (userMapper.existsByEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
+        }
+
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setRoleCode("USER");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setLastLoginAt(LocalDateTime.now());
+        user.setLastLoginIp(clientIp);
+        userMapper.insert(user);
+
+        UserProfile profile = new UserProfile();
+        profile.setUserId(user.getId());
+        profile.setDisplayName(displayName == null ? username : displayName);
+        profile.setPreferredLanguage("zh-CN");
+        userProfileMapper.insert(profile);
 
         String accessToken = jwtTokenProvider.generateToken(user.getId(), user.getUsername(), user.getRoleCode());
         return new LoginResponse(accessToken, user.getId(), user.getUsername(), user.getRoleCode());
@@ -156,5 +191,19 @@ public class AuthService {
         return player.getTagLine() == null || player.getTagLine().isBlank()
             ? player.getGameName()
             : player.getGameName() + "#" + player.getTagLine();
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String normalizeEmail(String value) {
+        String email = normalize(value);
+        return email == null ? null : email.toLowerCase();
+    }
+
+    private String normalizeOptional(String value) {
+        String normalized = normalize(value);
+        return normalized == null || normalized.isBlank() ? null : normalized;
     }
 }

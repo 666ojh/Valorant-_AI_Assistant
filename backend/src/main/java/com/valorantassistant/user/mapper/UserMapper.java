@@ -31,4 +31,11 @@ public interface UserMapper extends BaseMapper<User> {
         where username = #{username}
         """)
     boolean existsByUsername(@Param("username") String username);
+
+    @Select("""
+        select count(1) > 0
+        from `user`
+        where email = #{email}
+        """)
+    boolean existsByEmail(@Param("email") String email);
 }
